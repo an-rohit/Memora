@@ -59,6 +59,7 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
     const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
     const [fetchingMeta, setFetchingMeta] = useState(false);
     const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Reset state when modal opens/closes
@@ -68,6 +69,7 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
             setFetchingMeta(false);
             setTitleManuallyEdited(false);
             setError(null);
+            setIsDropdownOpen(false);
         }
     }, [open]);
 
@@ -159,17 +161,17 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl w-full max-w-lg overflow-hidden p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#111] rounded-3xl border border-gray-200 dark:border-white/10 shadow-2xl w-full max-w-lg overflow-hidden p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto transform transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between pb-5 border-b border-gray-100">
+                <div className="flex items-center justify-between pb-5 border-b border-gray-100 dark:border-white/10">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Add New Memory</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Save YouTube videos, tweets, articles or PDFs to your second brain</p>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Add New Memory</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Save videos, tweets, articles or PDFs to your second brain</p>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer"
                     >
                         <CrossIcon />
                     </button>
@@ -178,7 +180,7 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
                 {/* Form */}
                 <form onSubmit={addContent} className="mt-6 flex flex-col gap-5">
                     {error && (
-                        <div className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                        <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
                             <span>⚠️</span>
                             <span>{error}</span>
                         </div>
@@ -186,35 +188,60 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
 
                     {/* Content Type Selector */}
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                        <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-2">
                             Select Type
                         </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {TYPES.map((t) => (
-                                <button
-                                    key={t.value}
-                                    type="button"
-                                    onClick={() => setType(t.value)}
-                                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                                        type === t.value
-                                            ? "bg-purple-600 text-white border-purple-600 shadow-sm"
-                                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                    }`}
-                                >
-                                    {t.value === "article" && metadata?.favicon ? (
-                                        <img src={metadata.favicon} alt="" className="w-4 h-4 rounded-sm object-contain bg-white/20 p-0.5" />
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:border-purple-500 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all cursor-pointer"
+                            >
+                                <div className="flex items-center gap-2">
+                                    {type === "article" && metadata?.favicon ? (
+                                        <img src={metadata.favicon} alt="" className="w-5 h-5 rounded-sm object-contain bg-white p-0.5" />
                                     ) : (
-                                        t.renderIcon()
+                                        TYPES.find(t => t.value === type)?.renderIcon()
                                     )}
-                                    <span>{t.label}</span>
-                                </button>
-                            ))}
+                                    <span className="font-medium">{TYPES.find(t => t.value === type)?.label}</span>
+                                </div>
+                                <svg className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            
+                            {isDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 p-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {TYPES.map((t) => (
+                                        <button
+                                            key={t.value}
+                                            type="button"
+                                            onClick={() => {
+                                                setType(t.value);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                                                type === t.value
+                                                    ? "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                                                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+                                            }`}
+                                        >
+                                            {t.value === "article" && metadata?.favicon ? (
+                                                <img src={metadata.favicon} alt="" className="w-5 h-5 rounded-sm object-contain bg-white p-0.5" />
+                                            ) : (
+                                                t.renderIcon()
+                                            )}
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Link Input — moved above Title so metadata can auto-fill title */}
+                    {/* Link Input */}
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5">
                             URL / Link
                         </label>
                         <div className="relative">
@@ -223,7 +250,7 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
                                 type="text"
                                 onChange={handleLinkChange}
                                 placeholder="https://youtube.com/..., https://arxiv.org/pdf/... or PDF URL"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15 outline-none transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:border-purple-500 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-500/20 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                             />
                             {fetchingMeta && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -235,29 +262,29 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
 
                     {/* Live Metadata Preview */}
                     {metadata && (metadata.title || metadata.image) && (
-                        <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/60 to-indigo-50/40 p-3 flex gap-3 items-start animate-in fade-in duration-300">
+                        <div className="rounded-xl border border-purple-100 dark:border-purple-500/20 bg-gradient-to-br from-purple-50/60 to-indigo-50/40 dark:from-purple-500/10 dark:to-indigo-500/10 p-3 flex gap-3 items-start animate-in fade-in duration-300">
                             {metadata.image && (
                                 <img
                                     src={metadata.image}
                                     alt="Preview"
-                                    className="w-16 h-16 rounded-lg object-cover shrink-0 border border-gray-200"
+                                    className="w-16 h-16 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-white/10"
                                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
                             )}
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     {metadata.favicon && (
-                                        <img src={metadata.favicon} alt="" className="w-3.5 h-3.5 rounded-sm" />
+                                        <img src={metadata.favicon} alt="" className="w-3.5 h-3.5 rounded-sm bg-white" />
                                     )}
-                                    <span className="text-[10px] font-semibold text-purple-600 uppercase tracking-wider">
+                                    <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
                                         {metadata.domain || "Preview"}
                                     </span>
                                 </div>
                                 {metadata.title && (
-                                    <p className="text-xs font-semibold text-gray-800 line-clamp-1">{metadata.title}</p>
+                                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1">{metadata.title}</p>
                                 )}
                                 {metadata.description && (
-                                    <p className="text-[11px] text-gray-500 line-clamp-2 mt-0.5">{metadata.description}</p>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{metadata.description}</p>
                                 )}
                             </div>
                         </div>
@@ -265,11 +292,11 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
 
                     {/* Title Input */}
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5">
                             Memory Title
                             {metadata?.title && !titleManuallyEdited && (
-                                <span className="ml-2 text-[10px] font-medium text-purple-500 normal-case tracking-normal">
-                                    ✨ Auto-filled from page
+                                <span className="ml-2 text-[10px] font-medium text-purple-500 dark:text-purple-400 normal-case tracking-normal">
+                                    ✨ Auto-filled from link
                                 </span>
                             )}
                         </label>
@@ -278,22 +305,24 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
                             type="text"
                             onChange={() => setTitleManuallyEdited(true)}
                             placeholder="e.g. Building Next-Gen Web Apps with React"
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15 outline-none transition-all"
+                            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:border-purple-500 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-500/20 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                         />
                     </div>
 
-                    {/* Description / Personal Notes Input */}
-                    <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                            Personal Notes / Description <span className="text-gray-400 font-normal lowercase">(optional)</span>
-                        </label>
-                        <textarea
-                            ref={descRef}
-                            rows={2}
-                            placeholder="for about this video..."
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-purple-600 focus:ring-2 focus:ring-purple-600/15 outline-none transition-all resize-none"
-                        />
-                    </div>
+                    {/* Description Input */}
+                    {type !== "twitter" && (
+                        <div>
+                            <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5">
+                                Personal Notes / Description <span className="font-normal lowercase">(optional)</span>
+                            </label>
+                            <textarea
+                                ref={descRef}
+                                rows={2}
+                                placeholder="Add your thoughts or summary here..."
+                                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:border-purple-500 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-500/20 outline-none transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                            />
+                        </div>
+                    )}
 
                     {/* Submit Button */}
                     <div className="pt-2 flex justify-end gap-3">
@@ -306,9 +335,13 @@ export function CreateContentModal({ open, onClose, type: initialType = "youtube
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                            className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[140px]"
                         >
-                            {loading ? "Saving Memory..." : "Save Memory"}
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                "Save Memory"
+                            )}
                         </button>
                     </div>
                 </form>

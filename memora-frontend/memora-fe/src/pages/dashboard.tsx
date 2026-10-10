@@ -13,7 +13,7 @@ import { BACKEND_URL } from "../config";
 
 export function Dashboard() {
   const [modalOpen, setModalOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("home");
   const [searchQuery, setSearchQuery] = useState<string>("");
