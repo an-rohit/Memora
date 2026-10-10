@@ -120,3 +120,19 @@ body {
   from { box-shadow: 0 0 6px var(--steel-glow-soft); }
   to { box-shadow: 0 0 16px var(--steel-glow-strong), 0 0 2px var(--steel-glow-rim); }
 }
+
+/* Custom global scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #474747;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5c5c5c;
+}

@@ -512,7 +512,7 @@ export const Card = ({ _id, title, link, type, description, onDelete, onCopyToas
                 {type === "twitter" && (
                     <div className={`max-h-[300px] overflow-y-auto overflow-x-hidden rounded-xl border flex justify-center ${
                         isDark ? "bg-[#181715] border-white/10 text-white" : "bg-white border-gray-200 text-black"
-                    } scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent`}> 
+                    }`}> 
                         <div className="w-full max-w-full scale-[0.98] origin-top">
                             <blockquote className="twitter-tweet m-0" data-theme={isDark ? "dark" : "light"}>
                                 <a href={link.replace("x.com", "twitter.com")}></a>

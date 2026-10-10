@@ -62,7 +62,7 @@ export function Dashboard() {
     }
   }, [currentWorkspace]);
 
-  // Keyboard shortcut: Ctrl+\ or Cmd+\ toggles sidebar (Notion shortcut)
+  // Keyboard shortcut: Ctrl+\ or Cmd+\ toggles sidebar (shortcut)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "\\") {

@@ -41,7 +41,7 @@ export function SidebarPreview({
       }`}
     >
       <div>
-        {/* Notion-style Floating Box Header */}
+        {/*Floating Box Header */}
         <div className={`flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg border ${
           isDark ? "bg-white/5 border-white/5" : "bg-white border-gray-200"
         }`}>

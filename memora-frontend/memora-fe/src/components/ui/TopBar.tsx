@@ -29,18 +29,20 @@ export function TopBar({
 }: TopBarProps) {
   return (
     <header
-      className={`w-full h-14 ${isDark ? "bg-[#191919] border-white/5" : "bg-white border-gray-200"} border-b px-4 flex items-center justify-between shrink-0 select-none transition-colors duration-300 ${className}`}
+      className={`w-full h-14 ${isDark ? "bg-[#191919]" : "bg-white"} px-4 flex items-center justify-between shrink-0 select-none transition-colors duration-300 ${className}`}
     >
       {/* Left: Far-left Hamburger Menu Icon */}
-      <div className="flex items-center gap-3">
-        <HamburgerButton
-          onClick={onHamburgerClick}
-          onMouseEnter={onHamburgerMouseEnter}
-          onMouseLeave={onHamburgerMouseLeave}
-          isOpen={isSidebarOpen}
-        />
-        <span className="text-sm font-medium text-gray-400 opacity-75 hover:opacity-100 transition-opacity">
-          {title || "Memora Dashboard"}
+      <div className="flex items-center gap-0">
+        <div className={`transition-all duration-300 ${isSidebarOpen ? "opacity-0 pointer-events-none w-0 overflow-hidden" : "opacity-100 w-10"}`}>
+          <HamburgerButton
+            onClick={onHamburgerClick}
+            onMouseEnter={onHamburgerMouseEnter}
+            onMouseLeave={onHamburgerMouseLeave}
+            isOpen={isSidebarOpen}
+          />
+        </div>
+        <span className="text-sm font-medium text-gray-400 opacity-75 hover:opacity-100 transition-all whitespace-nowrap">
+          {title || "Dashboard"}
         </span>
       </div>
 
@@ -92,11 +94,7 @@ export function TopBar({
           <button
             type="button"
             onClick={onAddMemory}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer border flex items-center gap-1.5 active:scale-95 ${
-              isDark 
-                ? "bg-white/10 hover:bg-white/15 text-white border-white/10" 
-                : "bg-purple-600 hover:bg-purple-700 text-white border-purple-600 shadow-sm"
-            }`}
+            className="px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer border-none flex items-center gap-1.5 active:scale-95 bg-[#7164C0] hover:bg-[#7F73C6] text-white shadow-sm"
           >
             <span>+</span>
             <span>Add</span>

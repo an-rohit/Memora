@@ -61,11 +61,9 @@ export function Sidebar({
         }`}
       >
         {/* Header / Brand & Unlock Toggle */}
-        <div className={`flex items-center justify-between p-4 border-b shrink-0 ${isDark ? "border-white/5" : "border-gray-200"}`}>
+        <div className={`flex items-center justify-between h-14 px-4 shrink-0`}>
           <a href="/dashboard" className="flex items-center gap-3 group">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-              isDark ? "bg-[#2d2d2d] border-white/10 text-white" : "bg-white border-gray-200 text-[#55534E]"
-            }`}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7164C0] text-white shadow-sm">
               <Logo className="w-4 h-4" />
             </div>
             <div>
