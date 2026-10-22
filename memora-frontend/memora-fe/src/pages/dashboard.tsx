@@ -49,6 +49,7 @@ export function Dashboard() {
   const [sharingCollection, setSharingCollection] = useState<Collection | null>(null);
   const [isTreeDrawerOpen, setIsTreeDrawerOpen] = useState(false);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Unified collection navigator that updates both state and browser history
@@ -254,6 +255,13 @@ export function Dashboard() {
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
+  // Reset pagination to page 1 on filter, search, tab, or collection changes
+  useEffect(() => {
+    if (!highlightedCardId) {
+      setCurrentPage(1);
+    }
+  }, [selectedCollection, activeTab, searchQuery, typeFilter]);
+
   const sharedBrains = useMemo(() => {
     const raw = contents.filter((item) => item.type === "shared_brain");
     const seen = new Set<string>();
@@ -390,8 +398,17 @@ export function Dashboard() {
   // Sort chronologically ascending (_id ascending) so any newly added item goes to the last
   const sortedContents = [...filteredContents].sort((a, b) => (a._id > b._id ? 1 : a._id < b._id ? -1 : 0));
 
+  // 5 rows visible for cards only: items per page = numCols * 5 rows
+  const ROWS_PER_PAGE = 5;
+  const itemsPerPage = Math.max(1, numCols * ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(sortedContents.length / itemsPerPage));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const paginatedContents = sortedContents.slice(startIndex, startIndex + itemsPerPage);
+
   const columns: (typeof sortedContents)[] = Array.from({ length: numCols }, () => []);
-  sortedContents.forEach((item, idx) => {
+  paginatedContents.forEach((item, idx) => {
     columns[idx % numCols].push(item);
   });
 
@@ -764,6 +781,103 @@ export function Dashboard() {
                   ))}
                 </div>
               )}
+
+              {/* 5-Row Pagination Controls (Cards Only) */}
+              {filteredContents.length > 0 && totalPages > 1 && (
+                <div
+                  className={`mt-6 pt-5 pb-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4 select-none ${
+                    isDark ? "border-white/10 text-gray-400" : "border-gray-200 text-gray-600"
+                  }`}
+                >
+                  <div className="text-xs font-medium">
+                    Showing{" "}
+                    <span className={isDark ? "text-gray-200 font-bold" : "text-gray-900 font-bold"}>
+                      {startIndex + 1}–{Math.min(startIndex + itemsPerPage, sortedContents.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span className={isDark ? "text-gray-200 font-bold" : "text-gray-900 font-bold"}>
+                      {sortedContents.length}
+                    </span>{" "}
+                    cards
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={safeCurrentPage <= 1}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed ${
+                        isDark
+                          ? "border-white/10 hover:bg-white/10 text-gray-300 disabled:hover:bg-transparent"
+                          : "border-gray-200 hover:bg-gray-100 text-gray-700 disabled:hover:bg-transparent"
+                      }`}
+                    >
+                      ← Prev
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                        .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                          if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                            acc.push("...");
+                          }
+                          acc.push(p);
+                          return acc;
+                        }, [])
+                        .map((item, idx) => {
+                          if (typeof item === "string") {
+                            return (
+                              <span key={`dots-${idx}`} className="px-1 text-xs text-gray-500">
+                                ...
+                              </span>
+                            );
+                          }
+                          const isCurrent = item === safeCurrentPage;
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => {
+                                setCurrentPage(item);
+                                document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                                isCurrent
+                                  ? "bg-purple-600 text-white shadow-md shadow-purple-600/30"
+                                  : isDark
+                                  ? "hover:bg-white/10 text-gray-400 hover:text-white"
+                                  : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          );
+                        })}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={safeCurrentPage >= totalPages}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed ${
+                        isDark
+                          ? "border-white/10 hover:bg-white/10 text-gray-300 disabled:hover:bg-transparent"
+                          : "border-gray-200 hover:bg-gray-100 text-gray-700 disabled:hover:bg-transparent"
+                      }`}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -846,6 +960,17 @@ export function Dashboard() {
           }
           setIsTreeDrawerOpen(false);
           setHighlightedCardId(item._id);
+
+          // Find the exact page this card lands on so it is rendered and highlighted
+          const destItems = sourceContents
+            .filter((c) => (item.collectionId ? c.collectionId === item.collectionId : true))
+            .sort((a, b) => (a._id > b._id ? 1 : a._id < b._id ? -1 : 0));
+          const itemIdx = destItems.findIndex((c) => c._id === item._id);
+          if (itemIdx !== -1) {
+            const targetPage = Math.floor(itemIdx / itemsPerPage) + 1;
+            setCurrentPage(targetPage);
+          }
+
           setTimeout(() => {
             const el = document.getElementById(`card-${item._id}`);
             el?.scrollIntoView({ behavior: "smooth", block: "center" });

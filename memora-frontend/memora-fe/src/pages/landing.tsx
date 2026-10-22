@@ -832,14 +832,14 @@ export function Landing() {
           </p>
           <div className="mt-8 flex flex-col justify-center gap-4 motion-safe:animate-fade-up sm:flex-row" style={{ animationDelay: "550ms" }}>
             <Link to="/signup" className="group rounded-xl bg-purple-600 px-7 py-3 font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-purple-600/30">
-              Start Saving — It's Free <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
+              Start Saving, It's Free <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
             </Link>
             <Link to="/signin" className="rounded-xl border border-gray-200 px-7 py-3 font-semibold transition hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800">
               Live Demo
             </Link>
           </div>
           <p className="mt-4 text-sm text-[#85888c] [word-spacing:0.1em] motion-safe:animate-fade-up dark:text-gray-400" style={{ animationDelay: "650ms" }}>
-            No credit card • Free forever plan • 30-sec setup
+            No credit card • Free forever plan • 30 sec setup
           </p>
           </div>
         </div>
