@@ -4,6 +4,7 @@ import collectionModel from "../../models/collection.model.js";
 import contentModel from "../../models/content.model.js";
 import { hash } from "../../utils/hashingLink.util.js";
 import userModel from "../../models/user.model.js";
+import { createCollectionSchema, updateCollectionSchema } from "../../validators/collection.validator.js";
 
 
 
@@ -18,30 +19,33 @@ export const createCollection=async(req:Request,res:Response)=>{
             })
         };
 
-        const {title,icon}=req.body;
+        const parsed=createCollectionSchema.safeParse(req.body);
 
-       if(typeof title!=="string" || !title.trim()){
+        if(!parsed.success){
             return res.status(400).json({
-                message:"Title is required"
+                message:parsed.error.issues[0]?.message ?? "Invalid input"
             })
         };
 
-        const collection=await collectionModel.create({
-            title:title.trim(),
-            icon,
-            userId
-        });
+        // typed + trimmed, never the raw req.body
+        const {title,icon}=parsed.data;
+
+        // only set icon when it was sent, so the schema default 📁 is used otherwise
+        const data:{title:string; userId:string; icon?:string}={title,userId};
+        if(icon!==undefined) data.icon=icon;
+
+        const collection=await collectionModel.create(data);
 
         return res.status(201).json({
             message:"Collection Created !",
             collection:collection
         });
     } catch (error) {
-    console.error("createCollection failed",error);
-    return res.status(500).json({
-        message:"Internal server error"
-    });
-}
+        console.error("createCollection failed",error);
+        return res.status(500).json({
+            message:"Internal server error"
+        });
+    }
 };
 
 // fetching the collection
@@ -74,44 +78,35 @@ export const getCollection=async(req:Request,res:Response)=>{
 }
 };
 
-export const updateCollection =async(req:Request,res:Response)=>{
+// renames a collection or changes its icon
+export const updateCollection=async(req:Request,res:Response)=>{
     try {
-
         const userId=req.userId;
+        const id=req.params.id;
 
         if(!userId){
             return res.status(401).json({
                 message:"user is Unauthorized"
             })
-        }
-
-        const id=req.params.id;
-
-        const {title,icon}=req.body;
+        };
 
         if(!id || !mongoose.isValidObjectId(id)){
             return res.status(400).json({
                 message:"provides Params Id is Incorrect"
             })
-        }
+        };
 
-    if(title===undefined && icon===undefined){
-        return res.status(400).json({
-            message:"Nothing is updated"
-        }) // "Nothing to update"
-    }
-    if(title!==undefined && (typeof title!=="string" || !title.trim())){
-        return  res.status(400).json({
-            message:"Title must be a non-empty string"
-        })  
-    }
-    if(icon!==undefined && typeof icon!=="string"){
-        return  res.status(400).json({
-            message:"Icon must be a string"
-        }) 
-    }
+        const parsed=updateCollectionSchema.safeParse(req.body);
 
-        const collection = await collectionModel.findOne({_id:id ,userId:userId});
+        if(!parsed.success){
+            return res.status(400).json({
+                message:parsed.error.issues[0]?.message ?? "Invalid input"
+            })
+        };
+
+        const {title,icon}=parsed.data;
+
+        const collection=await collectionModel.findOne({_id:id,userId});
 
         if(!collection){
             return res.status(404).json({
@@ -119,48 +114,46 @@ export const updateCollection =async(req:Request,res:Response)=>{
             })
         };
 
-        
-        if(title!==undefined) collection.title=title.trim();
-        if(icon!==undefined)  collection.icon=icon;
+        // not sent → leave it as it is
+        if(title!==undefined) collection.title=title;
+        if(icon!==undefined) collection.icon=icon;
 
-       await collection.save();  
+        await collection.save();
 
-       return res.status(200).json({
-        message:"Collection updated Successfully !!",
-        updatedCollection:{
-            collection
-        }
-       })
+        return res.status(200).json({
+            message:"Collection updated Successfully !!",
+            updatedCollection:{
+                collection
+            }
+        })
     } catch (error) {
         console.error("updateCollection failed",error);
-    return res.status(500).json({
-        message:"Internal server error"
-    });
-
-        
+        return res.status(500).json({
+            message:"Internal server error"
+        });
     }
 };
 
 
+// deletes a collection; its notes move back to "All content"
 export const deleteCollection=async(req:Request,res:Response)=>{
     try {
         const userId=req.userId;
+        const id=req.params.id;
 
         if(!userId){
             return res.status(401).json({
                 message:"Unauthorized"
             })
-        }
+        };
 
-        const id = req.params.id;
-
-        if(!id  || !mongoose.isValidObjectId(id)){
+        if(!id || !mongoose.isValidObjectId(id)){
             return res.status(400).json({
                 message:"Provide valid Collection ID"
             })
         };
 
-        const collection = await collectionModel.findOne({_id:id,userId});
+        const collection=await collectionModel.findOne({_id:id,userId});
 
         if(!collection){
             return res.status(404).json({
@@ -168,27 +161,34 @@ export const deleteCollection=async(req:Request,res:Response)=>{
             })
         };
 
-        await contentModel.updateMany({
+        // links this user already has in "All content"
+        const linksInAllContent=await contentModel.distinct("link",{userId,collectionId:null});
+
+        // same link is already in "All content", so these copies are duplicates.
+        // they must go first, or the move below breaks the unique index (11000)
+        await contentModel.deleteMany({
+            userId,
             collectionId:id,
-            userId
-        },{
-            $set:{collectionId:null}
+            link:{$in:linksInAllContent}
         });
+
+        // move the remaining notes back to "All content"
+        await contentModel.updateMany(
+            {collectionId:id,userId},
+            {$set:{collectionId:null}}
+        );
 
         await collectionModel.deleteOne({_id:id,userId});
 
         return res.status(200).json({
             message:"Collection deleted Successfully"
         })
-
     } catch (error) {
         console.error("deleteCollection failed",error);
         return res.status(500).json({
-        message:"Internal server error"
-    });
-        
+            message:"Internal server error"
+        });
     }
-
 };
 
 
@@ -279,8 +279,6 @@ export const getSharedCollection=async(req:Request,res:Response)=>{
                 message:"Collection not Found"
             })
         };
-
-        const content = await contentModel.find({ collectionId: collection._id }).sort({ _id: 1 });
         const user=await userModel.findById(collection.userId).select("username");
 
         if(!user){
@@ -288,6 +286,9 @@ export const getSharedCollection=async(req:Request,res:Response)=>{
                 message:"Owner not Found"
             })
         };
+
+        const content = await contentModel.find({ collectionId: collection._id }).sort({ _id: 1 }).select("link type title description");
+        
 
         return res.status(200).json({
             message:"collection Fetched !!",
@@ -297,13 +298,12 @@ export const getSharedCollection=async(req:Request,res:Response)=>{
                     _id:collection._id,
                     title:collection.title,
                     icon:collection.icon,
-                    userId:collection.userId
-                },
+                    },
                 content
             }
         });
     } catch (error) {
-        console.error("getshareCollection failed",error);
+        console.error("getSharedCollection failed",error);
         return res.status(500).json({
             message:"Internal server error"
         });

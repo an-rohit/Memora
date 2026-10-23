@@ -23,7 +23,7 @@ export const signup=async(req:Request,res:Response)=>{
 
         const existingUser=await userModel.findOne({username});
         if(existingUser){
-            return res.status(403).json({
+            return res.status(409).json({
                 message:"user already exists"
             }) 
         }
@@ -85,7 +85,7 @@ export const signin=async(req:Request,res:Response)=>{
             })
         }
 
-        const token=jwt.sign({id:existingUser._id},process.env.JWT_SECRET!);
+        const token=jwt.sign({id:existingUser._id},process.env.JWT_SECRET!,{expiresIn:"7d"});
 
         return res.status(200).json({
             message:"User signed in Successfully!!!",
