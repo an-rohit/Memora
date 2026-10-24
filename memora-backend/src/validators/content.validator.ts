@@ -38,3 +38,15 @@ export const importDriveFolderSchema=z.object({
         .default(2)
 },{error:"Request body must be a JSON object"});
 
+
+// deleteManyContent: the notes the user selected (max 100 per request)
+export const deleteManyContentSchema=z.object({
+    ids:z.array(
+        z.string({error:"Enter valid Content ID"})
+            .refine((id)=>mongoose.isValidObjectId(id),{error:"Enter valid Content ID"}),
+        {error:"ids must be a list of Content IDs"}
+    )
+        .min(1,{error:"Select at least one note"})
+        .max(100,{error:"You can delete at most 100 notes at once"})
+},{error:"Request body must be a JSON object"});
+

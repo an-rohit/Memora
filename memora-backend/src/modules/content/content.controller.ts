@@ -6,7 +6,7 @@ import type{Request,Response} from "express";
 import linkModel from "../../models/link.model.js";
 import { hash } from "../../utils/hashingLink.util.js";
 import { toWebLink } from "../../utils/validateLink.util.js";
-import { addContentSchema, importDriveFolderSchema } from "../../validators/content.validator.js";
+import { addContentSchema, deleteManyContentSchema, importDriveFolderSchema } from "../../validators/content.validator.js";
 import userModel from "../../models/user.model.js";
 import { extractDriveFolderId, fetchDriveFolderFiles } from "../../utils/googleDrive.util.js";
 
@@ -405,6 +405,54 @@ export const fetchSharedContent=async(req:Request,res:Response)=>{
         
     }
 
+};
+
+
+// deletes all the notes the user selected, in one go
+export const deleteManyContent=async(req:Request,res:Response)=>{
+    try {
+        const userId=req.userId;
+
+        if(!userId){
+            return res.status(401).json({
+                message:"Unauthorized"
+            })
+        };
+
+        // also handles a missing body (req.body is undefined in Express 5)
+        const parsed=deleteManyContentSchema.safeParse(req.body);
+
+        if(!parsed.success){
+            return res.status(400).json({
+                message:parsed.error.issues[0]?.message ?? "Invalid input"
+            })
+        };
+
+        // same note selected twice → count it once
+        const ids=[...new Set(parsed.data.ids)];
+
+        // userId in the filter: another user's ids never match, so they can't be deleted
+        const result=await contentModel.deleteMany({
+            _id:{$in:ids},
+            userId
+        });
+
+        if(result.deletedCount===0){
+            return res.status(404).json({
+                message:"No notes found"
+            })
+        };
+
+        return res.status(200).json({
+            message:"Notes deleted Successfully",
+            deletedCount:result.deletedCount
+        })
+    } catch (error) {
+        console.error("deleteManyContent failed",error);
+        return res.status(500).json({
+            message:"Internal server error"
+        });
+    }
 };
 /*-----------------------------------------------------------------------------------*/
 

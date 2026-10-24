@@ -4,6 +4,7 @@ import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { 
     addContent, 
     deleteContent, 
+    deleteManyContent, 
     fetchContent, 
     fetchMetadata, 
     fetchSharedContent, 
@@ -21,6 +22,7 @@ router.put("/:contentId",authMiddleware,updateContent);
 router.patch("/:contentId",authMiddleware,updateContent);
 router.get("/preview/metadata",authMiddleware,fetchMetadata);
 router.delete("/:contentId",authMiddleware,deleteContent);
+router.post("/delete-many",authMiddleware,deleteManyContent);
 router.post("/share",authMiddleware,shareContent);
 router.post("/save-brain/:shareLink",authMiddleware,saveSharedBrainContent);
 router.post("/import/drive-folder",authMiddleware,importDriveFolder);

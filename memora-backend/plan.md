@@ -320,6 +320,38 @@ flowchart TD
 
 ---
 
+## 11. New features to build now 🔴
+
+These are features you plan to write yourself, before launch.
+
+| # | Status | What | Why | How |
+|---|---|---|---|---|
+| N1 | 🔴 | **Delete many notes at once** (new handler `deleteManyContent`) | Today notes can only be deleted one by one (`DELETE /content/:contentId`). Users should be able to **select** several notes and delete them together | **Route:** `POST /content/delete-many` (`authMiddleware`). It's a free URL; a POST body is safer than a DELETE body.<br/>**Body:** `{ "ids": ["<contentId>", ...] }`.<br/>**Validate (zod):** `ids` is a non-empty array of valid ObjectIds, at most 100. Remove duplicates.<br/>**Query:** one `deleteMany({ _id:{ $in:ids }, userId })`. `userId` in the filter means another user's ids are simply skipped.<br/>**Respond:** `deletedCount === 0` → 404; otherwise 200 `{ message, deletedCount }`.<br/>**Test:** no token → 401; missing / empty / not-an-array / bad id → 400; another user's ids → 404 and nothing deleted; a mix of own + others' ids → only own deleted; happy path → 200 with the right count.<br/>**Frontend:** checkboxes / "select" mode + a "Delete selected" button (`memora-frontend/memora-fe/plan.md`) |
+
+### N1 flow: `POST /content/delete-many`
+
+```mermaid
+flowchart TD
+    S["POST /content/delete-many<br/>body: { ids: [...] }"] --> A{"authMiddleware<br/>valid Bearer token?"}
+    A -- No --> R401["401 Unauthorized"]
+    A -- Yes --> U{"req.userId present?"}
+    U -- No --> R401
+    U -- Yes --> Z{"zod safeParse(req.body)<br/>ids = array of 1–100<br/>valid ObjectIds?"}
+    Z -- "No body / not an array /<br/>empty / bad id / > 100" --> R400["400 clear message<br/>(first zod issue)"]
+    Z -- Yes --> D["Remove duplicate ids<br/>[...new Set(ids)]"]
+    D --> Q["contentModel.deleteMany({<br/>_id: { $in: ids },<br/>userId })"]
+    Q --> N{"result.deletedCount === 0?"}
+    N -- "Yes<br/>(none exist or none are yours)" --> R404["404 No notes found"]
+    N -- No --> OK["200 { message, deletedCount }"]
+    Q -. throws .-> E["catch → console.error<br/>'deleteManyContent failed'"]
+    E --> R500["500 Internal server error"]
+```
+
+- `userId` in the `deleteMany` filter is the safety lock: another user's ids never match, so they can't be deleted.
+- Some ids already gone (e.g. deleted in another tab) → still 200, with a smaller `deletedCount`.
+
+---
+
 ## Definition of done (every item)
 
 ```mermaid
