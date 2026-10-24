@@ -212,7 +212,7 @@ export const shareCollection=async(req:Request,res:Response)=>{
             })
         };
 
-        const {share}=req.body;
+        const {share}=req.body ?? {};
 
         if(typeof share !== "boolean"){
             return res.status(400).json({
@@ -229,16 +229,44 @@ export const shareCollection=async(req:Request,res:Response)=>{
         };
 
         if(share===true){
-            if(!collection.shareHash){
-                collection.shareHash=hash(10);
-                await collection.save();
-            }
+            // already shared → give back the same link
+            if(collection.shareHash){
+                return res.status(200).json({
+                    message:"Shared Link is Ready",
+                    link:"/share/c/"+collection.shareHash
+                })
+            };
 
-        return res.status(200).json({
-            message:  "Shared Link is Ready",
-            link: "/share/c/" + collection.shareHash 
-        });
-        }
+            // one step: set a hash only if there still isn't one.
+            // two fast clicks can't both win, so the first link is never replaced
+            const updated=await collectionModel.findOneAndUpdate(
+                {_id:id,userId,shareHash:null},
+                {$set:{shareHash:hash(10)}},
+                // return the document after the update (by default you get the old one)
+                {returnDocument:"after"}
+            );
+
+            if(updated){
+                return res.status(201).json({
+                    message:"Shared Link is Ready",
+                    link:"/share/c/"+updated.shareHash
+                })
+            };
+
+            // the other click set the hash first → return that same link
+            const shared=await collectionModel.findOne({_id:id,userId}).select("shareHash");
+
+            if(!shared || !shared.shareHash){
+                return res.status(404).json({
+                    message:"Collection Not Found !!"
+                })
+            };
+
+            return res.status(200).json({
+                message:"Shared Link is Ready",
+                link:"/share/c/"+shared.shareHash
+            })
+        };
         
         await collectionModel.updateOne({_id:id,userId} ,
             {$unset:{
