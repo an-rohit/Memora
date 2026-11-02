@@ -52,6 +52,11 @@ export function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Bulk Selection State
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // Unified collection navigator that updates both state and browser history
   const navigateToCollection = (col: Collection | null) => {
     setSelectedCollection(col);
@@ -162,6 +167,64 @@ export function Dashboard() {
       console.error("Delete failed", err);
     }
   }
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllVisible = () => {
+    const currentCardIds = paginatedContents.map((c) => c._id);
+    const allSelected = currentCardIds.length > 0 && currentCardIds.every((id) => selectedIds.includes(id));
+
+    if (allSelected) {
+      // Deselect all on current visible page
+      setSelectedIds((prev) => prev.filter((id) => !currentCardIds.includes(id)));
+    } else {
+      // Select all on current page
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...currentCardIds])));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    const count = selectedIds.length;
+    if (!window.confirm(`Are you sure you want to delete ${count} ${count === 1 ? "note" : "notes"}?`)) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const CHUNK_SIZE = 100; // backend schema enforces max 100 IDs per call
+      let totalDeleted = 0;
+
+      for (let i = 0; i < selectedIds.length; i += CHUNK_SIZE) {
+        const chunk = selectedIds.slice(i, i + CHUNK_SIZE);
+        const res = await axios.post(
+          `${BACKEND_URL}/api/v1/content/delete-many`,
+          { ids: chunk },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        totalDeleted += res.data?.deletedCount ?? chunk.length;
+      }
+
+      showToast(`${totalDeleted} ${totalDeleted === 1 ? "memory" : "memories"} deleted successfully`);
+      setSelectedIds([]);
+      setIsSelectMode(false);
+      refresh();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to delete notes");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   async function handleShare() {
     try {
@@ -744,42 +807,120 @@ export function Dashboard() {
                   />
                 )
               ) : (
-                <div
-                  className="grid gap-6 items-start transition-all duration-300"
-                  style={{
-                    gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))`
-                  }}
-                >
-                  {columns.map((colItems, colIdx) => (
-                    <div key={colIdx} className="flex flex-col gap-6">
-                      {colItems.map(({ _id, type, link, title, description, collectionId }) => (
-                        <div
-                          key={_id}
-                          id={`card-${_id}`}
-                          className={`transition-all duration-500 rounded-2xl ${
-                            highlightedCardId === _id
-                              ? "ring-4 ring-purple-500 shadow-[0_0_35px_rgba(168,85,247,0.7)] scale-[1.02] animate-pulse"
-                              : ""
-                          }`}
-                        >
-                          <Card
-                            _id={_id}
-                            type={type}
-                            link={link}
-                            title={title}
-                            description={description}
-                            collectionId={collectionId}
-                            collections={collections}
-                            onMoveCollection={handleMoveCollection}
-                            onDelete={handleDelete}
-                            onCopyToast={showToast}
-                            isDark={isDark}
-                          />
+                <>
+                  {/* Bulk Selection Toolbar */}
+                  {currentWorkspace === "personal" && filteredContents.length > 0 && (
+                    <div className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                      isDark ? "bg-[#18181b] border-white/10" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      {!isSelectMode ? (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs text-gray-400 font-medium">
+                            {filteredContents.length} {filteredContents.length === 1 ? "memory" : "memories"} in view
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsSelectMode(true)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isDark
+                                ? "border-white/10 hover:bg-white/10 text-gray-300"
+                                : "border-gray-200 hover:bg-white text-gray-700 shadow-xs"
+                            }`}
+                          >
+                            <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            <span>Select Notes</span>
+                          </button>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="flex items-center justify-between w-full flex-wrap gap-2">
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold select-none">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  paginatedContents.length > 0 &&
+                                  paginatedContents.every((c) => selectedIds.includes(c._id))
+                                }
+                                onChange={handleSelectAllVisible}
+                                className="w-4 h-4 rounded text-purple-600 cursor-pointer accent-purple-600"
+                              />
+                              <span>Select All Visible</span>
+                            </label>
+                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                              {selectedIds.length} selected
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={selectedIds.length === 0 || isBulkDeleting}
+                              onClick={handleBulkDelete}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>🗑️</span>
+                              <span>{isBulkDeleting ? "Deleting..." : `Delete Selected (${selectedIds.length})`}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsSelectMode(false);
+                                setSelectedIds([]);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                isDark ? "border-white/10 hover:bg-white/10 text-gray-300" : "border-gray-200 hover:bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  <div
+                    className="grid gap-6 items-start transition-all duration-300"
+                    style={{
+                      gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))`
+                    }}
+                  >
+                    {columns.map((colItems, colIdx) => (
+                      <div key={colIdx} className="flex flex-col gap-6">
+                        {colItems.map(({ _id, type, link, title, description, collectionId }) => (
+                          <div
+                            key={_id}
+                            id={`card-${_id}`}
+                            className={`transition-all duration-500 rounded-2xl ${
+                              highlightedCardId === _id
+                                ? "ring-4 ring-purple-500 shadow-[0_0_35px_rgba(168,85,247,0.7)] scale-[1.02] animate-pulse"
+                                : ""
+                            }`}
+                          >
+                            <Card
+                              _id={_id}
+                              type={type}
+                              link={link}
+                              title={title}
+                              description={description}
+                              collectionId={collectionId}
+                              collections={collections}
+                              onMoveCollection={handleMoveCollection}
+                              onDelete={handleDelete}
+                              onCopyToast={showToast}
+                              isDark={isDark}
+                              selectable={isSelectMode}
+                              selected={selectedIds.includes(_id)}
+                              onToggleSelect={handleToggleSelect}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
 
               {/* 5-Row Pagination Controls (Cards Only) */}

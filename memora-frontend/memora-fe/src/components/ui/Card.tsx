@@ -33,6 +33,9 @@ interface CardProps {
     onDelete?: (id: string) => void;
     onCopyToast?: (msg: string) => void;
     isDark?: boolean;
+    selectable?: boolean;
+    selected?: boolean;
+    onToggleSelect?: (id: string) => void;
 }
 
 interface LinkMetadata {
@@ -104,7 +107,10 @@ export const Card = ({
     onMoveCollection,
     onDelete,
     onCopyToast,
-    isDark
+    isDark,
+    selectable = false,
+    selected = false,
+    onToggleSelect,
 }: CardProps) => {
     const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
     const [imgError, setImgError] = useState(false);
@@ -612,11 +618,34 @@ export const Card = ({
                 } ${isDark
                     ? "bg-[#1e1d1b] border-white/10 text-gray-100 hover:border-purple-500/40 shadow-black/40"
                     : "bg-white border-gray-200/80 text-gray-800"
-                }`}>
+                } ${selectable && selected ? (isDark ? "ring-2 ring-purple-500 bg-purple-500/10" : "ring-2 ring-purple-600 bg-purple-50/50") : ""}`}>
                 {/* Card Header (pinned and always visible) */}
                 <div className={`flex items-start justify-between gap-3 shrink-0 pb-3 border-b ${isDark ? "border-white/10" : "border-gray-100"
                     }`}>
                     <div className="flex items-center gap-2.5 min-w-0">
+                        {selectable && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleSelect?.(_id);
+                                }}
+                                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                                    selected
+                                        ? "bg-purple-600 border-purple-600 text-white shadow-xs"
+                                        : isDark
+                                        ? "border-white/30 hover:border-purple-400 bg-white/5"
+                                        : "border-gray-300 hover:border-purple-500 bg-white"
+                                }`}
+                                title={selected ? "Deselect note" : "Select note"}
+                            >
+                                {selected && (
+                                    <svg className="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </button>
+                        )}
                         <div className={`p-2 rounded-xl shrink-0 ${(effectiveType === "youtube" || effectiveType === "video") ? (isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-500") :
                                 effectiveType === "twitter" ? (isDark ? "bg-white/[0.08] text-white" : "bg-neutral-100 text-neutral-900") :
                                     effectiveType === "pdf" ? (isDark ? "bg-red-500/20 text-red-400" : "bg-red-50 text-red-600") :
