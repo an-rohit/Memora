@@ -120,31 +120,43 @@ export function Dashboard() {
     }
   }, [currentWorkspace]);
 
+  // Smooth View-Transition sidebar toggle
+  const toggleSidebar = (force?: boolean) => {
+    const nextVal = force !== undefined ? force : !sidebarOpen;
+    if (typeof document !== "undefined" && "startViewTransition" in document) {
+      document.startViewTransition(() => {
+        setSidebarOpen(nextVal);
+      });
+    } else {
+      setSidebarOpen(nextVal);
+    }
+  };
+
   // Keyboard shortcut: Ctrl+\ or Cmd+\ toggles sidebar (shortcut)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
         e.preventDefault();
-        setSidebarOpen((prev) => !prev);
+        toggleSidebar();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [sidebarOpen]);
 
-  // Hover preview handlers with micro delay
+  // Hover preview handlers with micro delay (smooth hysteresis)
   const handleHamburgerMouseEnter = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
       if (!sidebarOpen) setPreviewOpen(true);
-    }, 150);
+    }, 120);
   };
 
   const handleHamburgerMouseLeave = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
       setPreviewOpen(false);
-    }, 200);
+    }, 220);
   };
 
   const showToast = (msg: string) => {
@@ -172,6 +184,11 @@ export function Dashboard() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const handleStartSelect = (id: string) => {
+    setIsSelectMode(true);
+    setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   };
 
   const handleSelectAllVisible = () => {
@@ -426,7 +443,7 @@ export function Dashboard() {
     return true;
   });
 
-  // Responsive Column Distribution (Adds +1 column when side panel is closed to preserve card size)
+  // Responsive Column Distribution: 5 cards/row when closed, 4 cards/row when open
   const [numCols, setNumCols] = useState(4);
   useEffect(() => {
     const updateCols = () => {
@@ -439,20 +456,20 @@ export function Dashboard() {
         return;
       }
 
-      // On desktop, adjust column count based on whether the sidebar is open
       if (sidebarOpen) {
         if (w >= 2100) setNumCols(5);
         else if (w >= 1400) setNumCols(4);
         else if (w >= 1080) setNumCols(3);
         else setNumCols(2);
       } else {
-        // When side panel is closed (+260px available width), add 1 more card space per row!
+        // 5 cards per row when sidebar is closed (+260px space available)
         if (w >= 2100) setNumCols(6);
         else if (w >= 1400) setNumCols(5);
         else if (w >= 1080) setNumCols(4);
         else setNumCols(3);
       }
     };
+
     updateCols();
     window.addEventListener("resize", updateCols);
     return () => window.removeEventListener("resize", updateCols);
@@ -461,19 +478,16 @@ export function Dashboard() {
   // Sort chronologically ascending (_id ascending) so any newly added item goes to the last
   const sortedContents = [...filteredContents].sort((a, b) => (a._id > b._id ? 1 : a._id < b._id ? -1 : 0));
 
-  // 5 rows visible for cards only: items per page = numCols * 5 rows
-  const ROWS_PER_PAGE = 5;
-  const itemsPerPage = Math.max(1, numCols * ROWS_PER_PAGE);
+  // Stable 20 cards per page on desktop:
+  // Closed = 5 cols x 4 rows (20 cards)
+  // Open   = 4 cols x 5 rows (20 cards)
+  // Perfectly balanced; no cards get evicted between pages on sidebar toggle!
+  const itemsPerPage = numCols >= 4 ? 20 : Math.max(1, numCols * 5);
   const totalPages = Math.max(1, Math.ceil(sortedContents.length / itemsPerPage));
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
   const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const paginatedContents = sortedContents.slice(startIndex, startIndex + itemsPerPage);
-
-  const columns: (typeof sortedContents)[] = Array.from({ length: numCols }, () => []);
-  paginatedContents.forEach((item, idx) => {
-    columns[idx % numCols].push(item);
-  });
 
   return (
     <div className={`h-screen w-screen ${isDark ? "bg-[#191919] text-gray-200" : "bg-white text-gray-900"} font-sans flex overflow-hidden relative transition-colors duration-300`}>
@@ -481,7 +495,7 @@ export function Dashboard() {
       {/* ── Left Navigation Panel (Sidebar Drawer / Flex Sibling) ──── */}
       <Sidebar
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => toggleSidebar(false)}
         activeTab={activeTab}
         onSelectTab={(tabId) => {
           setActiveTab(tabId);
@@ -503,6 +517,7 @@ export function Dashboard() {
         }}
       />
 
+
       {/* ── Hover Navigation Preview (Floats without pushing content) ── */}
       <SidebarPreview
         visible={previewOpen && !sidebarOpen}
@@ -510,9 +525,7 @@ export function Dashboard() {
           if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
           setPreviewOpen(true);
         }}
-        onMouseLeave={() => {
-          setPreviewOpen(false);
-        }}
+        onMouseLeave={handleHamburgerMouseLeave}
         items={NAV_ITEMS}
         activeTab={activeTab}
         onSelectTab={(tabId) => {
@@ -520,19 +533,19 @@ export function Dashboard() {
           setPreviewOpen(false);
         }}
         onLockSidebar={() => {
-          setSidebarOpen(true);
+          toggleSidebar(true);
           setPreviewOpen(false);
         }}
         isDark={isDark}
       />
 
       {/* ── Main Workspace Window (TopBar + Content Area) ──────────── */}
-      <div className={`flex-1 h-full flex flex-col min-w-0 ${isDark ? "bg-[#191919]" : "bg-white"} overflow-hidden relative transition-all duration-300 ease-out`}>
+      <div className={`flex-1 h-full flex flex-col min-w-0 ${isDark ? "bg-[#191919]" : "bg-white"} overflow-hidden relative transition-[padding,margin] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]`}>
 
         {/* Top Header Bar */}
         <TopBar
           onHamburgerClick={() => {
-            setSidebarOpen((prev) => !prev);
+            toggleSidebar();
             setPreviewOpen(false);
           }}
           onHamburgerMouseEnter={handleHamburgerMouseEnter}
@@ -882,41 +895,39 @@ export function Dashboard() {
                   )}
 
                   <div
-                    className="grid gap-6 items-start transition-all duration-300"
+                    className="grid gap-6 items-start"
                     style={{
                       gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))`
                     }}
                   >
-                    {columns.map((colItems, colIdx) => (
-                      <div key={colIdx} className="flex flex-col gap-6">
-                        {colItems.map(({ _id, type, link, title, description, collectionId }) => (
-                          <div
-                            key={_id}
-                            id={`card-${_id}`}
-                            className={`transition-all duration-500 rounded-2xl ${
-                              highlightedCardId === _id
-                                ? "ring-4 ring-purple-500 shadow-[0_0_35px_rgba(168,85,247,0.7)] scale-[1.02] animate-pulse"
-                                : ""
-                            }`}
-                          >
-                            <Card
-                              _id={_id}
-                              type={type}
-                              link={link}
-                              title={title}
-                              description={description}
-                              collectionId={collectionId}
-                              collections={collections}
-                              onMoveCollection={handleMoveCollection}
-                              onDelete={handleDelete}
-                              onCopyToast={showToast}
-                              isDark={isDark}
-                              selectable={isSelectMode}
-                              selected={selectedIds.includes(_id)}
-                              onToggleSelect={handleToggleSelect}
-                            />
-                          </div>
-                        ))}
+                    {paginatedContents.map((item) => (
+                      <div
+                        key={item._id}
+                        id={`card-${item._id}`}
+                        style={{ viewTransitionName: `card-${item._id}` }}
+                        className={`rounded-2xl ${
+                          highlightedCardId === item._id
+                            ? "ring-4 ring-purple-500 shadow-[0_0_35px_rgba(168,85,247,0.7)] scale-[1.02] animate-pulse"
+                            : ""
+                        }`}
+                      >
+                        <Card
+                          _id={item._id}
+                          type={item.type}
+                          link={item.link}
+                          title={item.title}
+                          description={item.description}
+                          collectionId={item.collectionId}
+                          collections={collections}
+                          onMoveCollection={handleMoveCollection}
+                          onDelete={handleDelete}
+                          onCopyToast={showToast}
+                          isDark={isDark}
+                          selectable={isSelectMode}
+                          selected={selectedIds.includes(item._id)}
+                          onToggleSelect={handleToggleSelect}
+                          onStartSelect={handleStartSelect}
+                        />
                       </div>
                     ))}
                   </div>

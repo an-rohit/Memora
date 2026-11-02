@@ -36,6 +36,7 @@ interface CardProps {
     selectable?: boolean;
     selected?: boolean;
     onToggleSelect?: (id: string) => void;
+    onStartSelect?: (id: string) => void;
 }
 
 interface LinkMetadata {
@@ -111,11 +112,14 @@ export const Card = ({
     selectable = false,
     selected = false,
     onToggleSelect,
+    onStartSelect,
 }: CardProps) => {
     const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
     const [imgError, setImgError] = useState(false);
     const [readerOpen, setReaderOpen] = useState(false);
     const [isMoveMenuOpen, setIsMoveMenuOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const cardMenuRef = useRef<HTMLDivElement>(null);
     const [currentCollectionId, setCurrentCollectionId] = useState<string | null | undefined>(collectionId);
     const [isMovingCollection, setIsMovingCollection] = useState(false);
     const moveMenuRef = useRef<HTMLDivElement>(null);
@@ -167,18 +171,21 @@ export const Card = ({
         };
     }, []);
 
-    // Close Move-to-Collection menu on click outside
+    // Close menus on click outside
     useEffect(() => {
-        if (!isMoveMenuOpen) return;
+        if (!isMoveMenuOpen && !isMenuOpen) return;
         const handleClickOutside = (e: MouseEvent) => {
             if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
                 setIsMoveMenuOpen(false);
                 setCollectionSearch("");
             }
+            if (cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) {
+                setIsMenuOpen(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isMoveMenuOpen]);
+    }, [isMoveMenuOpen, isMenuOpen]);
 
     // Handle ESC key to dismiss panel, modal, or floating preview blur
     useEffect(() => {
@@ -389,6 +396,15 @@ export const Card = ({
     const isArticle = effectiveType !== "youtube" && effectiveType !== "twitter" && effectiveType !== "pdf" && effectiveType !== "shared_brain" && effectiveType !== "video";
     const hasImage = isArticle && metadata?.image && !imgError;
     const domainName = metadata?.domain || (() => { try { return new URL(normalizedLink).hostname; } catch { return ""; } })();
+    const cleanDomain = useMemo(() => {
+        if (isSharedBrain) return "memora vault";
+        if (metadata?.domain) return metadata.domain.replace(/^www\./i, "").toLowerCase();
+        try {
+            return new URL(normalizedLink).hostname.replace(/^www\./i, "").toLowerCase();
+        } catch {
+            return effectiveType;
+        }
+    }, [metadata?.domain, normalizedLink, isSharedBrain, effectiveType]);
     const ytVideoId = getYouTubeVideoId(link);
     const ytThumbnailUrl = ytVideoId ? `https://img.youtube.com/vi/${ytVideoId}/hqdefault.jpg` : null;
 
@@ -620,9 +636,10 @@ export const Card = ({
                     : "bg-white border-gray-200/80 text-gray-800"
                 } ${selectable && selected ? (isDark ? "ring-2 ring-purple-500 bg-purple-500/10" : "ring-2 ring-purple-600 bg-purple-50/50") : ""}`}>
                 {/* Card Header (pinned and always visible) */}
-                <div className={`flex items-start justify-between gap-3 shrink-0 pb-3 border-b ${isDark ? "border-white/10" : "border-gray-100"
-                    }`}>
-                    <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`flex items-center justify-between gap-2 shrink-0 pb-2.5 border-b ${
+                    isDark ? "border-white/10" : "border-gray-100"
+                }`}>
+                    <div className="flex items-center gap-2 min-w-0">
                         {selectable && (
                             <button
                                 type="button"
@@ -630,9 +647,9 @@ export const Card = ({
                                     e.stopPropagation();
                                     onToggleSelect?.(_id);
                                 }}
-                                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                                className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                                     selected
-                                        ? "bg-purple-600 border-purple-600 text-white shadow-xs"
+                                        ? "bg-purple-600 border-purple-600 text-white"
                                         : isDark
                                         ? "border-white/30 hover:border-purple-400 bg-white/5"
                                         : "border-gray-300 hover:border-purple-500 bg-white"
@@ -640,43 +657,38 @@ export const Card = ({
                                 title={selected ? "Deselect note" : "Select note"}
                             >
                                 {selected && (
-                                    <svg className="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3 h-3 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 )}
                             </button>
                         )}
-                        <div className={`p-2 rounded-xl shrink-0 ${(effectiveType === "youtube" || effectiveType === "video") ? (isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-500") :
-                                effectiveType === "twitter" ? (isDark ? "bg-white/[0.08] text-white" : "bg-neutral-100 text-neutral-900") :
-                                    effectiveType === "pdf" ? (isDark ? "bg-red-500/20 text-red-400" : "bg-red-50 text-red-600") :
-                                        isSharedBrain ? (isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-600") :
-                                            (isDark ? "bg-purple-500/15 text-purple-400" : "bg-purple-50 text-purple-600")
-                            }`}>
+
+                        {/* Frameless Minimal Type Icon */}
+                        <div className="shrink-0 flex items-center justify-center">
                             {(effectiveType === "youtube" || effectiveType === "video") && (
                                 <img
-                                    width="24"
-                                    height="24"
+                                    width="16"
+                                    height="16"
                                     src="https://img.icons8.com/softteal-line/24/video.png"
                                     alt="video"
-                                    className={`w-5 h-5 object-contain transition-all ${isDark ? "brightness-125 drop-shadow-[0_0_6px_rgba(72,184,166,0.35)]" : "brightness-95 contrast-125"
-                                        }`}
+                                    className="w-4 h-4 object-contain brightness-110"
                                 />
                             )}
                             {effectiveType === "twitter" && (
                                 <img
-                                    width="50"
-                                    height="50"
+                                    width="16"
+                                    height="16"
                                     src="https://img.icons8.com/ios/50/twitterx--v2.png"
-                                    alt="twitterx--v2"
-                                    className={`w-5 h-5 object-contain transition-all ${isDark ? "invert brightness-125" : "opacity-90"
-                                        }`}
+                                    alt="twitter"
+                                    className={`w-3.5 h-3.5 object-contain ${isDark ? "invert" : ""}`}
                                 />
                             )}
                             {effectiveType === "pdf" && (
                                 <img
                                     src="https://img.icons8.com/fluency-systems-regular/48/pdf-2.png"
-                                    alt="pdf-2"
-                                    className="w-5 h-5 object-contain transition-all"
+                                    alt="pdf"
+                                    className="w-4 h-4 object-contain"
                                     style={{
                                         filter: isDark
                                             ? "invert(1) brightness(1.2)"
@@ -685,92 +697,163 @@ export const Card = ({
                                 />
                             )}
                             {isSharedBrain && (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                             )}
                             {isArticle && (
                                 metadata?.favicon ? (
-                                    <img src={metadata.favicon} alt="" className="w-5 h-5 rounded-sm" />
+                                    <img src={metadata.favicon} alt="" className="w-3.5 h-3.5 rounded-xs" />
                                 ) : (
-                                    <svg className={`w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className={`w-3.5 h-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                     </svg>
                                 )
                             )}
                         </div>
-                        <div className="min-w-0">
-                            <h3 className={`truncate font-bold text-base transition-colors ${isDark ? "text-gray-100 group-hover:text-purple-400" : "text-gray-800 group-hover:text-purple-600"
-                                }`} title={title}>
-                                {title}
-                            </h3>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`text-[11px] font-semibold capitalize ${isDark ? "text-gray-400" : "text-gray-400"}`}>
-                                    {isSharedBrain ? "Memora Vault" : (domainName || effectiveType)}
+
+                        {/* Clean Lowercase Domain */}
+                        <span className={`text-[11px] font-medium lowercase truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                            {cleanDomain}
+                        </span>
+
+                        {/* Collection Badge */}
+                        {currentCollectionId && collections && (() => {
+                            const matchedCol = collections.find(c => c._id === currentCollectionId);
+                            if (!matchedCol) return null;
+                            return (
+                                <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20 truncate max-w-[110px]"
+                                    title={`Collection: ${matchedCol.title}`}
+                                >
+                                    <CollectionIcon icon={matchedCol.icon} className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate">{matchedCol.title}</span>
                                 </span>
-                                {currentCollectionId && collections && (() => {
-                                    const matchedCol = collections.find(c => c._id === currentCollectionId);
-                                    if (!matchedCol) return null;
-                                    return (
-                                        <span
-                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20 truncate max-w-[130px]"
-                                            title={`Collection: ${matchedCol.title}`}
-                                        >
-                                            <CollectionIcon icon={matchedCol.icon} className="w-3 h-3 shrink-0" />
-                                            <span className="truncate">{matchedCol.title}</span>
-                                        </span>
-                                    );
-                                })()}
-                            </div>
-                        </div>
+                            );
+                        })()}
                     </div>
 
-                    {/* Actions */}
-                    <div className={`flex items-center gap-1 shrink-0 relative ${isDark ? "text-gray-400" : "text-gray-500"}`} ref={moveMenuRef}>
-                        {/* Move to Collection Dropdown Button */}
-                        {(onMoveCollection || (collections && collections.length > 0)) && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsMoveMenuOpen(!isMoveMenuOpen);
-                                }}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? "hover:bg-white/10 hover:text-white" : "hover:bg-gray-100 hover:text-gray-700"
-                                    } ${isMoveMenuOpen ? (isDark ? "text-purple-400 bg-purple-500/15" : "text-purple-700 bg-purple-100") : ""}`}
-                                title="Move to Collection"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                            </button>
-                        )}
-
+                    {/* Actions: Clean ··· Menu Button & Move Dropdown */}
+                    <div className="relative flex items-center gap-1" ref={cardMenuRef}>
                         <button
-                            onClick={handleCopy}
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? "hover:bg-white/10 hover:text-white" : "hover:bg-gray-100 hover:text-gray-600"
-                                }`}
-                            title="Copy Link"
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMenuOpen(!isMenuOpen);
+                            }}
+                            className={`p-1 rounded-md transition-all cursor-pointer ${
+                                isDark ? "text-gray-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            } ${isMenuOpen ? (isDark ? "bg-white/10 text-white" : "bg-gray-100 text-gray-900") : "opacity-70 group-hover:opacity-100"}`}
+                            title="More options"
                         >
-                            <ShareIcon size="md" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                            </svg>
                         </button>
-                        {onDelete && (
-                            <button
-                                onClick={() => onDelete(_id)}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? "hover:bg-red-500/20 hover:text-red-400" : "hover:bg-red-50 hover:text-red-500"
-                                    }`}
-                                title="Delete Memory"
-                            >
-                                <Delete size="md" />
-                            </button>
-                        )}
 
-                        {isMoveMenuOpen && (
+                        {/* Dropdown Menu */}
+                        {isMenuOpen && (
                             <div
                                 onClick={(e) => e.stopPropagation()}
-                                className={`absolute right-0 top-9 z-50 w-52 rounded-xl border p-1 backdrop-blur-xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-100 ${isDark ? "bg-[#18181b]/95 border-white/10 text-gray-200" : "bg-white/95 border-gray-200 text-gray-800 shadow-xl"
-                                    }`}
+                                className={`absolute right-0 top-7 z-50 w-48 rounded-xl border p-1 backdrop-blur-xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-100 ${
+                                    isDark ? "bg-[#18181b]/98 border-white/10 text-gray-200" : "bg-white/98 border-gray-200 text-gray-800"
+                                }`}
                             >
-                                {/* Quick search input if 4+ collections */}
+                                {/* 1. Move to Collection */}
+                                {(onMoveCollection || (collections && collections.length > 0)) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsMenuOpen(false);
+                                            setIsMoveMenuOpen(true);
+                                        }}
+                                        className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center gap-2 cursor-pointer ${
+                                            isDark ? "hover:bg-white/10 text-gray-200" : "hover:bg-gray-100 text-gray-700"
+                                        }`}
+                                    >
+                                        <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                        </svg>
+                                        <span>Move to Collection</span>
+                                    </button>
+                                )}
+
+                                {/* 2. Copy Link */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        handleCopy();
+                                        setIsMenuOpen(false);
+                                    }}
+                                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center gap-2 cursor-pointer ${
+                                        isDark ? "hover:bg-white/10 text-gray-200" : "hover:bg-gray-100 text-gray-700"
+                                    }`}
+                                >
+                                    <ShareIcon size="md" />
+                                    <span>Copy Link</span>
+                                </button>
+
+                                {/* 3. Open in New Tab */}
+                                <a
+                                    href={normalizedLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center gap-2 cursor-pointer ${
+                                        isDark ? "hover:bg-white/10 text-gray-200" : "hover:bg-gray-100 text-gray-700"
+                                    }`}
+                                >
+                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    <span>Open in new tab</span>
+                                </a>
+
+                                {/* 4. Select for Multiple Delete */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsMenuOpen(false);
+                                        onStartSelect?.(_id);
+                                    }}
+                                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center gap-2 cursor-pointer ${
+                                        isDark ? "hover:bg-white/10 text-gray-200" : "hover:bg-gray-100 text-gray-700"
+                                    }`}
+                                >
+                                    <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                    </svg>
+                                    <span>Select for bulk delete</span>
+                                </button>
+
+                                <div className={`my-1 border-t ${isDark ? "border-white/10" : "border-gray-100"}`} />
+
+                                {/* 5. Delete Memory */}
+                                {onDelete && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsMenuOpen(false);
+                                            onDelete(_id);
+                                        }}
+                                        className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center gap-2 text-red-400 hover:bg-red-500/15 cursor-pointer"
+                                    >
+                                        <Delete size="md" />
+                                        <span>Delete Memory</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Move To Collection Submenu Modal */}
+                        {isMoveMenuOpen && (
+                            <div
+                                ref={moveMenuRef}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`absolute right-0 top-7 z-50 w-52 rounded-xl border p-1 backdrop-blur-xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-100 ${
+                                    isDark ? "bg-[#18181b]/98 border-white/10 text-gray-200" : "bg-white/98 border-gray-200 text-gray-800 shadow-xl"
+                                }`}
+                            >
                                 {collections.length >= 4 && (
                                     <div className="p-1 pb-1.5">
                                         <div className="relative flex items-center">
@@ -783,10 +866,11 @@ export const Card = ({
                                                 placeholder="Move to..."
                                                 value={collectionSearch}
                                                 onChange={(e) => setCollectionSearch(e.target.value)}
-                                                className={`w-full pl-7 pr-5 py-1 text-xs rounded-lg border-0 focus:outline-none transition-all ${isDark
+                                                className={`w-full pl-7 pr-5 py-1 text-xs rounded-lg border-0 focus:outline-none transition-all ${
+                                                    isDark
                                                         ? "bg-white/5 text-gray-200 placeholder-gray-500 focus:bg-white/10"
                                                         : "bg-gray-100 text-gray-800 placeholder-gray-400 focus:bg-gray-200/70"
-                                                    }`}
+                                                }`}
                                             />
                                             {collectionSearch && (
                                                 <button
@@ -801,15 +885,16 @@ export const Card = ({
                                     </div>
                                 )}
 
-                                {/* Root Vault option */}
+                                {/* Root Vault Option */}
                                 <button
                                     type="button"
                                     disabled={isMovingCollection}
                                     onClick={() => handleMoveCollectionSelect(null)}
-                                    className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center justify-between cursor-pointer ${!currentCollectionId
+                                    className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center justify-between cursor-pointer ${
+                                        !currentCollectionId
                                             ? isDark ? "bg-purple-600/15 text-purple-300 font-semibold" : "bg-purple-100 text-purple-800 font-bold"
                                             : isDark ? "hover:bg-white/5 text-gray-300" : "hover:bg-gray-100 text-gray-700"
-                                        }`}
+                                    }`}
                                 >
                                     <span className="flex items-center gap-2 truncate">
                                         <CollectionIcon icon={DEFAULT_COLLECTION_ICON} className="w-4 h-4 shrink-0" />
@@ -818,14 +903,7 @@ export const Card = ({
                                     {!currentCollectionId && <span className="text-purple-400 font-bold text-xs ml-1.5">✓</span>}
                                 </button>
 
-                                {/* Subtle 1px divider */}
-                                <div className={`my-1 border-t ${isDark ? "border-white/5" : "border-gray-100"}`} />
-
-                                {/* Collections List */}
-                                <div className={`max-h-52 overflow-y-auto flex flex-col gap-0.5 [scrollbar-width:thin] ${isDark
-                                        ? "[scrollbar-color:rgba(255,255,255,0.15)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
-                                        : "[scrollbar-color:rgba(0,0,0,0.15)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400"
-                                    }`}>
+                                <div className="max-h-40 overflow-y-auto mt-1 flex flex-col gap-0.5">
                                     {filteredCollections.length === 0 ? (
                                         <div className="px-2 py-3 text-center text-xs text-gray-400">
                                             {collectionSearch ? "No folders found" : "No folders"}
@@ -839,10 +917,11 @@ export const Card = ({
                                                     type="button"
                                                     disabled={isMovingCollection}
                                                     onClick={() => handleMoveCollectionSelect(c._id)}
-                                                    className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center justify-between cursor-pointer ${isSelected
+                                                    className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors flex items-center justify-between cursor-pointer ${
+                                                        isSelected
                                                             ? isDark ? "bg-purple-600/15 text-purple-300 font-semibold" : "bg-purple-100 text-purple-800 font-bold"
                                                             : isDark ? "hover:bg-white/5 text-gray-300" : "hover:bg-gray-100 text-gray-700"
-                                                        }`}
+                                                    }`}
                                                 >
                                                     <span className="flex items-center gap-2 min-w-0 flex-1">
                                                         <CollectionIcon icon={c.icon} className="w-4 h-4 shrink-0" />

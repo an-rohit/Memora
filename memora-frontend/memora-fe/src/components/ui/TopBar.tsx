@@ -132,13 +132,18 @@ export function TopBar({
     >
       {/* Left: Far-left Hamburger Menu Icon */}
       <div className="flex items-center gap-0">
-        <div className={`transition-all duration-300 ${isSidebarOpen ? "opacity-0 pointer-events-none w-0 overflow-hidden" : "opacity-100 w-10"}`}>
+        <div className={`transition-all duration-300 relative group ${isSidebarOpen ? "opacity-0 pointer-events-none w-0 overflow-hidden" : "opacity-100 w-10"}`}>
           <HamburgerButton
             onClick={onHamburgerClick}
             onMouseEnter={onHamburgerMouseEnter}
             onMouseLeave={onHamburgerMouseLeave}
             isOpen={isSidebarOpen}
           />
+          {/* Notion Tooltip on Hover */}
+          <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col items-start z-50 pointer-events-none whitespace-nowrap px-2.5 py-1 rounded-lg bg-[#202022] border border-white/10 text-white shadow-xl animate-in fade-in zoom-in-95 duration-100">
+            <span className="text-[11px] font-semibold leading-tight">Lock sidebar open</span>
+            <span className="text-[9px] text-gray-400 font-mono">Ctrl+\</span>
+          </div>
         </div>
         <div className={`text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
           isDark ? "text-gray-400 opacity-75 hover:opacity-100" : "text-gray-700 hover:text-gray-900"

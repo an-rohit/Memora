@@ -58,7 +58,7 @@ export function Sidebar({
       <aside
         className={`fixed lg:static top-0 left-0 bottom-0 z-40 w-[260px] ${
           isDark ? "bg-[#202020] text-gray-200 border-white/5" : "bg-[#F9F8F7] text-[#55534E] border-gray-200"
-        } border-r flex flex-col justify-between shrink-0 transition-all duration-300 ease-out ${
+        } border-r flex flex-col justify-between shrink-0 transition-[margin,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           open ? "translate-x-0 lg:ml-0" : "-translate-x-full lg:translate-x-0 lg:-ml-[260px]"
         }`}
       >

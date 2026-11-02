@@ -23,7 +23,6 @@ export function HamburgerButton({
         isOpen ? "bg-white/10 text-white" : ""
       } ${className}`}
       aria-label="Toggle Navigation Menu"
-      title="Menu"
     >
       <svg
         className="w-5 h-5 transition-transform duration-200"

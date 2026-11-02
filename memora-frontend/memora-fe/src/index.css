@@ -136,3 +136,20 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #5c5c5c;
 }
+
+/* Smooth, Ghost-Free View Transition for Cards */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-group(*) {
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}

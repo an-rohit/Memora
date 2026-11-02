@@ -32,24 +32,28 @@ export function SidebarPreview({
     <div
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className={`fixed top-12 left-3 z-50 w-[260px] max-h-[85vh] overflow-y-auto ${
-        isDark ? "bg-[#202020] border-white/10" : "bg-[#F9F8F7] border-gray-200"
-      } border rounded-xl p-3 shadow-2xl transition-all duration-200 ease-out flex flex-col justify-between ${
+      className={`fixed top-14 bottom-3.5 left-0 z-50 w-[245px] flex flex-col justify-between rounded-r-2xl border-y border-r p-3 shadow-2xl backdrop-blur-xl transition-all duration-200 ease-out ${
+        isDark
+          ? "bg-[#202020]/98 border-white/10 text-gray-200 shadow-[0_15px_40px_rgba(0,0,0,0.7)]"
+          : "bg-[#F9F8F7]/98 border-gray-200 text-[#55534E] shadow-[0_15px_40px_rgba(0,0,0,0.12)]"
+      } ${
         visible
-          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-          : "opacity-0 -translate-y-2 scale-95 pointer-events-none"
+          ? "opacity-100 translate-x-0 pointer-events-auto"
+          : "opacity-0 -translate-x-full pointer-events-none"
       }`}
     >
-      <div>
-        {/*Floating Box Header */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Floating Box Header */}
         <div className={`flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg border ${
           isDark ? "bg-white/5 border-white/5" : "bg-white border-gray-200"
         }`}>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-5 h-5 rounded bg-purple-600/30 text-purple-600 flex items-center justify-center font-bold text-[10px]">
+            <div className="w-5 h-5 rounded bg-purple-600/30 text-purple-600 flex items-center justify-center font-bold text-[10px] shrink-0">
               M
             </div>
-            <span className={`text-xs font-semibold truncate ${isDark ? "text-gray-200" : "text-gray-800"}`}>Memora Vault</span>
+            <span className={`text-xs font-semibold truncate ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+              Memora Vault
+            </span>
           </div>
 
           {/* Expand / Lock Button */}
@@ -77,7 +81,8 @@ export function SidebarPreview({
           </kbd>
         </button>
 
-        <div className="flex flex-col gap-0.5">
+        {/* Navigation Items List */}
+        <div className="flex-1 overflow-y-auto flex flex-col gap-0.5">
           {items.map((item) => (
             <NavigationItem
               key={item.id}
